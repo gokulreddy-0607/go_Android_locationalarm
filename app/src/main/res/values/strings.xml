@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">GeoSmaran</string>
+    <!-- Replace this with your actual Web Client ID from Firebase Console -->
+    <string name="default_web_client_id">10299680807-9mb107o0hksf28g4r2i2oqftf2v9s8ap.apps.googleusercontent.com</string>
+    <string name="no_users_found">No users found matching \'%1$s\'</string>
+    <string name="no_users_registered">No other users registered yet</string>
+    <string name="error_searching_users">Error searching users: %1$s</string>
+    <string name="start_typing_to_find">Start typing to find people</string>
+</resources>

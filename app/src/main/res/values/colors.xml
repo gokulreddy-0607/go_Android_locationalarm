@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AMOLED Neon Palette -->
+    <color name="primary">#00E5FF</color> <!-- Neon Cyan -->
+    <color name="primary_variant">#00B8D4</color>
+    <color name="primary_container">#1A00E5FF</color>
+    <color name="on_primary">#000000</color>
+    
+    <color name="secondary">#AA00FF</color> <!-- Neon Purple -->
+    <color name="secondary_variant">#7200CA</color>
+    <color name="secondary_container">#1AAA00FF</color>
+    <color name="on_secondary">#FFFFFF</color>
+    
+    <color name="background">#000000</color> <!-- True AMOLED Black -->
+    <color name="surface">#000000</color>
+    <color name="on_surface">#FFFFFF</color>
+    <color name="on_surface_variant">#B0BEC5</color>
+    
+    <color name="error">#FF1744</color> <!-- Neon Red -->
+    <color name="outline">#00E5FF</color>
+    
+    <!-- Neutral Tones (Fixed Build Errors) -->
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="gray_900">#121212</color>
+    <color name="gray_800">#424242</color>
+    <color name="gray_600">#757575</color>
+    <color name="gray_300">#E0E0E0</color>
+    <color name="gray_dark">#44474E</color>
+    <color name="gray_light">#E0E0E0</color>
+    
+    <!-- Neon Effect Colors -->
+    <color name="neon_cyan">#00E5FF</color>
+    <color name="neon_purple">#AA00FF</color>
+    <color name="neon_red">#FF1744</color>
+    <color name="neon_stroke">#4D00E5FF</color>
+    <color name="neon_stroke_strong">#00E5FF</color>
+</resources>
