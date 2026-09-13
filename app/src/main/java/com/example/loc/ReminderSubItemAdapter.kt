@@ -9,7 +9,8 @@ import com.example.loc.databinding.ItemReminderSubItemBinding
 class ReminderSubItemAdapter(
     private var items: List<ReminderItem>,
     private val onItemChanged: (Int, ReminderItem) -> Unit,
-    private val onItemDeleted: (Int) -> Unit
+    private val onItemDeleted: (Int) -> Unit,
+    private val onItemEdit: (Int, ReminderItem) -> Unit
 ) : RecyclerView.Adapter<ReminderSubItemAdapter.ViewHolder>() {
 
     fun updateItems(newItems: List<ReminderItem>) {
@@ -63,6 +64,10 @@ class ReminderSubItemAdapter(
 
             binding.btnDeleteItem.setOnClickListener {
                 onItemDeleted(position)
+            }
+
+            binding.btnEditItem.setOnClickListener {
+                onItemEdit(position, item)
             }
         }
     }

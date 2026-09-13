@@ -15,7 +15,6 @@ class GeofenceAdapter(
     private val onDeleteClick: (GeofenceEntity) -> Unit,
     private val onEditClick: (GeofenceEntity) -> Unit,
     private val onOpenMapClick: (GeofenceEntity) -> Unit,
-    private val onBookClick: (GeofenceEntity) -> Unit,
     private val onToggleClick: (GeofenceEntity) -> Unit,
     private val onAudioSelectClick: (GeofenceEntity) -> Unit
 ) : ListAdapter<GeofenceEntity, GeofenceAdapter.GeofenceViewHolder>(DiffCallback()) {
@@ -43,15 +42,21 @@ class GeofenceAdapter(
             
             val distanceStr = if (geofence.isActive) {
                 currentUserLocation?.let {
-                    val results = FloatArray(1)
-                    Location.distanceBetween(it.latitude, it.longitude, geofence.latitude, geofence.longitude, results)
-                    val distanceInMeters = results[0]
-                    val formatted = if (distanceInMeters >= 1000) {
-                        "${"%.2f".format(distanceInMeters / 1000)} km"
+                    // REQUIREMENT: Only calculate/show distance when accuracy is "accurate" (blue radius is small)
+                    val accuracy = if (it.hasAccuracy()) it.accuracy else 200f
+                    if (accuracy <= 40f) {
+                        val results = FloatArray(1)
+                        Location.distanceBetween(it.latitude, it.longitude, geofence.latitude, geofence.longitude, results)
+                        val distanceInMeters = results[0]
+                        val formatted = if (distanceInMeters >= 1000) {
+                            "${"%.2f".format(distanceInMeters / 1000)} km"
+                        } else {
+                            "${"%.0f".format(distanceInMeters)} m"
+                        }
+                        "| Distance: $formatted"
                     } else {
-                        "${"%.0f".format(distanceInMeters)} m"
+                        "| Distance: Acquiring GPS..."
                     }
-                    "| Distance: $formatted"
                 } ?: "| Distance: Calculating..."
             } else {
                 ""
@@ -77,7 +82,6 @@ class GeofenceAdapter(
             binding.btnDelete.setOnClickListener { onDeleteClick(geofence) }
             binding.btnEdit.setOnClickListener { onEditClick(geofence) }
             binding.btnOpenMap.setOnClickListener { onOpenMapClick(geofence) }
-            binding.btnBook.setOnClickListener { onBookClick(geofence) }
             binding.btnSelectAudio.setOnClickListener { onAudioSelectClick(geofence) }
             
             binding.switchActive.setOnCheckedChangeListener(null)

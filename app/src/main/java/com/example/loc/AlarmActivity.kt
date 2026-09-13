@@ -1,11 +1,9 @@
 package com.example.loc
 
-import android.Manifest
 import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.location.Location
 import android.media.AudioAttributes
@@ -30,10 +28,7 @@ import com.example.loc.data.Converters
 import com.example.loc.data.ReminderItem
 import com.example.loc.databinding.ActivityAlarmBinding
 import com.google.android.gms.location.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 
 class AlarmActivity : AppCompatActivity() {
 
@@ -44,10 +39,6 @@ class AlarmActivity : AppCompatActivity() {
     private var targetLongitude: Double = 0.0
     private var currentGeofenceId: Int = -1
 
-    companion object {
-        var isShowing = false
-    }
-
     override fun attachBaseContext(newBase: Context) {
         val newConfig = Configuration(newBase.resources.configuration)
         newConfig.fontScale = 1.0f
@@ -57,9 +48,8 @@ class AlarmActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        isShowing = true
-        
-        // Comprehensive flags to wake up and show over lock screen
+
+        // Flags to wake up and show over lock screen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -75,6 +65,15 @@ class AlarmActivity : AppCompatActivity() {
                         WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
             )
         }
+
+        // EXPERT FIX: Reinforce flags for all versions to ensure screen stays on and wakes up reliably
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
 
         binding = ActivityAlarmBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -94,6 +93,7 @@ class AlarmActivity : AppCompatActivity() {
         
         if (isReminder) {
             binding.tvAlertSubtitle.text = "Location Reminder"
+            binding.tvAlarmTitle.text = "REMINDER"
             setupReminderItems(itemsJson)
         }
 
@@ -110,8 +110,12 @@ class AlarmActivity : AppCompatActivity() {
         
         try {
             val converters = Converters()
-            val items = converters.fromString(json).toMutableList()
-            if (items.isNotEmpty()) {
+            val allItems = converters.fromString(json)
+            
+            // REQUIREMENT: Checked/Verified items should NOT display in the alarm activity
+            val unverifiedItems = allItems.filter { !(it.isCompleted || it.isFailed) }
+
+            if (unverifiedItems.isNotEmpty()) {
                 binding.itemsContainer.visibility = View.VISIBLE
                 binding.rvReminderItems.layoutManager = LinearLayoutManager(this)
                 binding.rvReminderItems.adapter = object : RecyclerView.Adapter<ReminderItemViewHolder>() {
@@ -121,16 +125,11 @@ class AlarmActivity : AppCompatActivity() {
                     }
 
                     override fun onBindViewHolder(holder: ReminderItemViewHolder, position: Int) {
-                        val item = items[position]
-                        holder.bind(item) { isChecked ->
-                            // Update local list
-                            items[position].isCompleted = isChecked
-                            // Sync back to database immediately
-                            updateItemsInDatabase(items)
-                        }
+                        val item = unverifiedItems[position]
+                        holder.bind(item)
                     }
 
-                    override fun getItemCount() = items.size
+                    override fun getItemCount() = unverifiedItems.size
                 }
             }
         } catch (e: Exception) {
@@ -138,51 +137,46 @@ class AlarmActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateItemsInDatabase(items: List<ReminderItem>) {
-        if (currentGeofenceId == -1) return
-        val json = Converters().fromList(items)
-        val db = AppDatabase.getDatabase(applicationContext)
-        CoroutineScope(Dispatchers.IO).launch {
-            val dao = db.reminderDao()
-            val reminder = dao.getReminderById(currentGeofenceId)
-            if (reminder != null) {
-                dao.update(reminder.copy(itemsJson = json))
-            }
-        }
-    }
-
     class ReminderItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val tvName: TextView = view.findViewById(R.id.tvItemName)
         private val checkBox: CheckBox = view.findViewById(R.id.cbReminderItem)
         
-        fun bind(item: ReminderItem, onCheckChanged: (Boolean) -> Unit) {
+        fun bind(item: ReminderItem) {
             tvName.text = item.name
-            checkBox.setOnCheckedChangeListener(null) // Prevent recursive trigger
-            checkBox.isChecked = item.isCompleted
-            checkBox.setOnCheckedChangeListener { _, isChecked ->
-                onCheckChanged(isChecked)
-            }
+            checkBox.visibility = View.GONE
         }
     }
 
     private fun startDistanceUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
 
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000).build()
+        // REQUIREMENT: Increase frequency to 1s for immediate feedback during alarm
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+            .setMinUpdateIntervalMillis(500)
+            .build()
         fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 val location = locationResult.lastLocation ?: return
-                val results = FloatArray(1)
-                Location.distanceBetween(location.latitude, location.longitude, targetLatitude, targetLongitude, results)
-                val distance = results[0]
                 
-                val distanceStr = if (distance >= 1000) {
-                    "%.2f km".format(distance / 1000)
+                // REQUIREMENT: Only calculate/show distance when accuracy is "accurate" (blue radius is small)
+                val accuracy = if (location.hasAccuracy()) location.accuracy else 200f
+                val accuracyStr = "Accuracy: %.0f m".format(accuracy)
+
+                if (accuracy <= 40f) {
+                    val results = FloatArray(1)
+                    Location.distanceBetween(location.latitude, location.longitude, targetLatitude, targetLongitude, results)
+                    val distance = results[0]
+                    
+                    val distanceStr = if (distance >= 1000) {
+                        "%.2f km".format(distance / 1000)
+                    } else {
+                        "%.0f m".format(distance)
+                    }
+                    
+                    binding.tvDistanceDisplay.text = "Distance: $distanceStr\n$accuracyStr"
                 } else {
-                    "%.0f m".format(distance)
+                    binding.tvDistanceDisplay.text = "Distance: Acquiring GPS...\n$accuracyStr"
                 }
-                
-                binding.tvDistanceDisplay.text = "Distance: $distanceStr"
             }
         }, Looper.getMainLooper())
     }
@@ -226,39 +220,40 @@ class AlarmActivity : AppCompatActivity() {
                         start()
                     }
                 } catch (e2: Exception) {
-                    Log.e("AlarmActivity", "Critical error playing default alarm", e2)
+                    Log.e("AlarmActivity", "Critical error playing default alarm")
                 }
             }
         }
     }
 
     private fun stopAlarm(geofenceId: Int, isReminder: Boolean) {
-        isShowing = false
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(geofenceId) 
+        val uniqueNotificationId = if (isReminder) geofenceId + 100000 else geofenceId
+        notificationManager.cancel(uniqueNotificationId) 
 
         if (geofenceId != -1) {
             val db = AppDatabase.getDatabase(applicationContext)
             CoroutineScope(Dispatchers.IO).launch {
                 if (isReminder) {
-                    // Reminders stay active to monitor EXIT, but we stop the sound
-                    // We only turn them OFF manually in the main list.
-                    withContext(Dispatchers.Main) {
-                        finishAndRemoveTask()
+                    val dao = db.reminderDao()
+                    val reminder = dao.getReminderById(geofenceId)
+                    if (reminder != null) {
+                        // REQUIREMENT: Turn reminder card OFF/Inactive when alarm finishes.
+                        // DO NOT DELETE the card.
+                        dao.update(reminder.copy(isActive = false))
                     }
                 } else {
-                    val dao = db.geofenceDao()
-                    val geofence = dao.getGeofenceById(geofenceId)
-                    if (geofence != null) {
-                        dao.update(geofence.copy(isActive = false))
+                    val dao = db.geofenceDao().getGeofenceById(geofenceId)
+                    if (dao != null) {
+                        db.geofenceDao().update(dao.copy(isActive = false))
                     }
-                    withContext(Dispatchers.Main) {
-                        finishAndRemoveTask()
-                    }
+                }
+                withContext(Dispatchers.Main) {
+                    finishAndRemoveTask()
                 }
             }
         } else {
@@ -268,7 +263,6 @@ class AlarmActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        isShowing = false
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null

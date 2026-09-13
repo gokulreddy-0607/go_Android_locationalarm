@@ -44,7 +44,7 @@
     <!-- Specific component sizes -->
     <dimen name="bottom_nav_height">80dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
-    <dimen name="fab_bottom_margin">96dp</dimen>
+    <dimen name="fab_bottom_margin">120dp</dimen>
     <dimen name="list_bottom_padding">100dp</dimen>
     <dimen name="divider_height">1dp</dimen>
     <dimen name="button_height">56dp</dimen>

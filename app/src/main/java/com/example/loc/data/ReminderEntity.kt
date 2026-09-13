@@ -14,7 +14,8 @@ data class ReminderEntity(
     val longitude: Double,
     val radius: Float,
     val isActive: Boolean = false,
-    val itemsJson: String = "[]"
+    val itemsJson: String = "[]",
+    val audioUri: String? = null
 )
 
 data class ReminderItem(

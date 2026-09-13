@@ -25,13 +25,15 @@ class BootReceiver : BroadcastReceiver() {
             val canStartLocationService = (hasFineLocation || hasCoarseLocation) && hasBackgroundLocation && hasForegroundServiceLocation
 
             if (canStartLocationService) {
-                val serviceIntent = Intent(context, LocationService::class.java)
+                val serviceIntent = Intent(context, LocationService::class.java).apply {
+                    action = LocationService.ACTION_SYNC_GEOFENCES
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(serviceIntent)
                 } else {
                     context.startService(serviceIntent)
                 }
-                Log.d("BootReceiver", "LocationService started successfully.")
+                Log.d("BootReceiver", "LocationService started successfully after boot.")
             } else {
                 Log.e("BootReceiver", "Required permissions not granted to start LocationService. Fine: $hasFineLocation, Coarse: $hasCoarseLocation, Background: $hasBackgroundLocation, FGS_Location: $hasForegroundServiceLocation")
                 // Optionally, you might want to show a persistent notification informing the user

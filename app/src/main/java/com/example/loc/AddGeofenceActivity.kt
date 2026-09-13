@@ -2,6 +2,7 @@ package com.example.loc
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
@@ -9,7 +10,11 @@ import android.location.Address
 import android.location.Geocoder
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -39,6 +44,8 @@ class AddGeofenceActivity : AppCompatActivity(), OnMapReadyCallback {
     private var currentRadius = 100f
     private var editingGeofenceId: Int = 0
     private var isReminder: Boolean = false
+    private var existingItemsJson: String = "[]"
+    private var existingAudioUri: String? = null
     private lateinit var suggestionAdapter: SuggestionAdapter
     private var searchJob: Job? = null
 
@@ -54,6 +61,10 @@ class AddGeofenceActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityAddGeofenceBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener { finish() }
+
         viewModel = ViewModelProvider(this@AddGeofenceActivity)[GeofenceViewModel::class.java]
 
         val mapFragment = supportFragmentManager
@@ -62,9 +73,19 @@ class AddGeofenceActivity : AppCompatActivity(), OnMapReadyCallback {
 
         setupSuggestions()
         setupSearch()
+        setupRadiusControls()
 
         isReminder = intent.getBooleanExtra("EXTRA_IS_REMINDER", false)
         editingGeofenceId = intent.getIntExtra("EXTRA_GEOFENCE_ID", 0)
+        existingItemsJson = intent.getStringExtra("EXTRA_ITEMS_JSON") ?: "[]"
+        existingAudioUri = intent.getStringExtra("EXTRA_AUDIO_URI")
+
+        val title = if (editingGeofenceId != 0) {
+            if (isReminder) "Edit Reminder" else "Edit Geofence"
+        } else {
+            if (isReminder) "Add Reminder" else "Add Geofence"
+        }
+        supportActionBar?.title = title
         
         if (isReminder) {
             binding.btnSave.text = "Save Reminder"
@@ -76,27 +97,59 @@ class AddGeofenceActivity : AppCompatActivity(), OnMapReadyCallback {
         if (editingGeofenceId != 0) {
             binding.etName.setText(intent.getStringExtra("EXTRA_NAME"))
             currentRadius = intent.getFloatExtra("EXTRA_RADIUS", 100f)
-            binding.sliderRadius.value = currentRadius
+            
+            // Set initial radius values
+            if (currentRadius >= 1000) {
+                binding.etRadiusValue.setText((currentRadius / 1000).toString())
+                binding.spinnerUnit.setText("km", false)
+            } else {
+                binding.etRadiusValue.setText(currentRadius.toInt().toString())
+                binding.spinnerUnit.setText("m", false)
+            }
+
             val lat = intent.getDoubleExtra("EXTRA_LATITUDE", 0.0)
             val lng = intent.getDoubleExtra("EXTRA_LONGITUDE", 0.0)
             selectedLatLng = LatLng(lat, lng)
             binding.btnSave.text = if (isReminder) "Update Reminder" else "Update Geofence"
-        }
-
-        binding.sliderRadius.addOnChangeListener { _, value, _ ->
-            currentRadius = value
-            val displayValue = if (value >= 1000) {
-                "${"%.1f".format(value / 1000)} km"
-            } else {
-                "${value.toInt()} m"
-            }
-            binding.tvRadiusLabel.text = "Radius: $displayValue"
-            updateMapDisplay()
+        } else {
+            // Default for new
+            binding.etRadiusValue.setText("100")
+            binding.spinnerUnit.setText("m", false)
         }
 
         binding.btnSave.setOnClickListener {
             saveLocation()
         }
+    }
+
+    private fun setupRadiusControls() {
+        val units = arrayOf("m", "km")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, units)
+        binding.spinnerUnit.setAdapter(adapter)
+
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                updateRadiusFromInput()
+            }
+        }
+
+        binding.etRadiusValue.addTextChangedListener(watcher)
+        binding.spinnerUnit.setOnItemClickListener { _, _, _, _ ->
+            updateRadiusFromInput()
+        }
+    }
+
+    private fun updateRadiusFromInput() {
+        val valueStr = binding.etRadiusValue.text.toString()
+        if (valueStr.isEmpty()) return
+
+        val value = valueStr.toFloatOrNull() ?: return
+        val unit = binding.spinnerUnit.text.toString()
+
+        currentRadius = if (unit == "km") value * 1000f else value
+        updateMapDisplay()
     }
     private fun setupSuggestions() {
         suggestionAdapter = SuggestionAdapter { address ->
@@ -261,14 +314,15 @@ class AddGeofenceActivity : AppCompatActivity(), OnMapReadyCallback {
             }
 
             if (isReminder) {
-                // FIX: Ensure isActive is TRUE when saving
                 val reminder = ReminderEntity(
                     id = editingGeofenceId,
                     name = name,
                     latitude = latLng.latitude,
                     longitude = latLng.longitude,
                     radius = currentRadius,
-                    isActive = true 
+                    isActive = true,
+                    itemsJson = existingItemsJson,
+                    audioUri = existingAudioUri
                 )
                 viewModel.insertReminder(reminder)
             } else {
@@ -289,6 +343,18 @@ class AddGeofenceActivity : AppCompatActivity(), OnMapReadyCallback {
                 } else {
                     if (editingGeofenceId == 0) "Geofence saved and tracking" else "Geofence updated"
                 }
+                
+                // REQUIREMENT: Trigger immediate sync in LocationService
+                val syncIntent = Intent(this@AddGeofenceActivity, LocationService::class.java).apply {
+                    action = LocationService.ACTION_SYNC_GEOFENCES
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(syncIntent)
+                } else {
+                    startService(syncIntent)
+                }
+                Log.d("Reminder", "Triggered SYNC_GEOFENCES after save.")
+
                 Toast.makeText(this@AddGeofenceActivity, message, Toast.LENGTH_SHORT).show()
                 finish()
             }

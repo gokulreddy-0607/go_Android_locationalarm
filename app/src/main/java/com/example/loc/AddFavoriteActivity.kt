@@ -38,6 +38,11 @@ class AddFavoriteActivity : AppCompatActivity(), OnMapReadyCallback {
         binding = ActivityAddFavoriteBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.title = "Add Favorite"
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener { finish() }
+
         viewModel = ViewModelProvider(this)[GeofenceViewModel::class.java]
 
         val mapFragment = supportFragmentManager
@@ -164,6 +169,15 @@ class AddFavoriteActivity : AppCompatActivity(), OnMapReadyCallback {
             mMap.uiSettings.isMyLocationButtonEnabled = true
             // Increase padding to ensure button is visible below the search bar and above the save container
             mMap.setPadding(0, 200, 0, 400)
+        }
+
+        // Check if we were passed a specific location to start with (e.g., Current Location)
+        val lat = intent.getDoubleExtra("EXTRA_LATITUDE", Double.NaN)
+        val lng = intent.getDoubleExtra("EXTRA_LONGITUDE", Double.NaN)
+        
+        if (!lat.isNaN() && !lng.isNaN()) {
+            val initialLatLng = LatLng(lat, lng)
+            selectLocation(initialLatLng)
         }
 
         mMap.setOnMapClickListener { latLng ->

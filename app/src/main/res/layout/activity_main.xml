@@ -18,7 +18,6 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="@string/app_name"
             app:titleTextColor="@color/primary"
             app:titleCentered="true" />
 
@@ -28,21 +27,22 @@
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginTop="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="120dp"
             android:clipToPadding="false"
+            android:paddingBottom="@dimen/list_bottom_padding"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewFavorites"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="120dp"
+            android:paddingBottom="@dimen/list_bottom_padding"
             android:clipToPadding="false"
             android:visibility="gone"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
@@ -51,7 +51,7 @@
             android:id="@+id/recyclerViewReminders"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="120dp"
+            android:paddingBottom="@dimen/list_bottom_padding"
             android:clipToPadding="false"
             android:visibility="gone"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
@@ -83,20 +83,6 @@
                 android:textStyle="bold" />
         </LinearLayout>
     </FrameLayout>
-
-    <!-- Create Button: Positioned on the RIGHT (End) above the navigation bar -->
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/fabAdd"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:text="Create"
-        android:textColor="@color/black"
-        app:backgroundTint="@color/primary"
-        app:icon="@drawable/ic_add"
-        app:iconTint="@color/black"
-        app:layout_anchor="@id/bottomNavigation"
-        app:layout_anchorGravity="top|end" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigation"

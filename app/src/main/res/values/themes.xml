@@ -19,6 +19,7 @@
         
         <item name="materialCardViewStyle">@style/Widget.App.CardView</item>
         <item name="materialButtonStyle">@style/Widget.App.Button</item>
+        <item name="materialAlertDialogTheme">@style/Theme.Loc.PurpleDialog</item>
     </style>
 
     <style name="Theme.Loc" parent="Base.Theme.Loc" />
@@ -37,5 +38,19 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- Custom Neon Purple Dialog Theme -->
+    <style name="Theme.Loc.PurpleDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/secondary</item> <!-- Neon Purple for buttons -->
+        <item name="colorOnSurface">@color/black</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="android:textColorPrimary">@color/black</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/DialogTitleText</item>
+    </style>
+
+    <style name="DialogTitleText" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">@color/black</item>
+        <item name="android:textStyle">bold</item>
     </style>
 </resources>
